@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/gogo/protobuf v1.3.2
 	google.golang.org/grpc v1.45.0
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 )
 
 require (

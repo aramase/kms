@@ -40,98 +40,90 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type VersionRequest struct {
-	// Version of the KMS plugin API.
-	Version              string   `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+type StatusRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *VersionRequest) Reset()         { *m = VersionRequest{} }
-func (m *VersionRequest) String() string { return proto.CompactTextString(m) }
-func (*VersionRequest) ProtoMessage()    {}
-func (*VersionRequest) Descriptor() ([]byte, []int) {
+func (m *StatusRequest) Reset()         { *m = StatusRequest{} }
+func (m *StatusRequest) String() string { return proto.CompactTextString(m) }
+func (*StatusRequest) ProtoMessage()    {}
+func (*StatusRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_a0b84a42fa06f626, []int{0}
 }
-func (m *VersionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_VersionRequest.Unmarshal(m, b)
+func (m *StatusRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StatusRequest.Unmarshal(m, b)
 }
-func (m *VersionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_VersionRequest.Marshal(b, m, deterministic)
+func (m *StatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StatusRequest.Marshal(b, m, deterministic)
 }
-func (m *VersionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_VersionRequest.Merge(m, src)
+func (m *StatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatusRequest.Merge(m, src)
 }
-func (m *VersionRequest) XXX_Size() int {
-	return xxx_messageInfo_VersionRequest.Size(m)
+func (m *StatusRequest) XXX_Size() int {
+	return xxx_messageInfo_StatusRequest.Size(m)
 }
-func (m *VersionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_VersionRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_VersionRequest proto.InternalMessageInfo
-
-func (m *VersionRequest) GetVersion() string {
-	if m != nil {
-		return m.Version
-	}
-	return ""
+func (m *StatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StatusRequest.DiscardUnknown(m)
 }
 
-type VersionResponse struct {
+var xxx_messageInfo_StatusRequest proto.InternalMessageInfo
+
+type StatusResponse struct {
 	// Version of the KMS plugin API.
 	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
-	// Name of the KMS provider.
-	RuntimeName string `protobuf:"bytes,2,opt,name=runtime_name,json=runtimeName,proto3" json:"runtime_name,omitempty"`
-	// Version of the KMS provider. The string must be semver-compatible.
-	RuntimeVersion       string   `protobuf:"bytes,3,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
+	// anything other than "ok" is failing healthz
+	Healthz string `protobuf:"bytes,2,opt,name=healthz,proto3" json:"healthz,omitempty"`
+	// the current write key, triggers rotation via storage version hash
+	// https://github.com/kubernetes/kubernetes/blob/1ea07d482a5ec15afac5ea837585174579fc0f57/staging/src/k8s.io/apiserver/pkg/endpoints/installer.go#L407
+	CurrentKeyID         string   `protobuf:"bytes,3,opt,name=currentKeyID,proto3" json:"currentKeyID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *VersionResponse) Reset()         { *m = VersionResponse{} }
-func (m *VersionResponse) String() string { return proto.CompactTextString(m) }
-func (*VersionResponse) ProtoMessage()    {}
-func (*VersionResponse) Descriptor() ([]byte, []int) {
+func (m *StatusResponse) Reset()         { *m = StatusResponse{} }
+func (m *StatusResponse) String() string { return proto.CompactTextString(m) }
+func (*StatusResponse) ProtoMessage()    {}
+func (*StatusResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_a0b84a42fa06f626, []int{1}
 }
-func (m *VersionResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_VersionResponse.Unmarshal(m, b)
+func (m *StatusResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StatusResponse.Unmarshal(m, b)
 }
-func (m *VersionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_VersionResponse.Marshal(b, m, deterministic)
+func (m *StatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StatusResponse.Marshal(b, m, deterministic)
 }
-func (m *VersionResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_VersionResponse.Merge(m, src)
+func (m *StatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatusResponse.Merge(m, src)
 }
-func (m *VersionResponse) XXX_Size() int {
-	return xxx_messageInfo_VersionResponse.Size(m)
+func (m *StatusResponse) XXX_Size() int {
+	return xxx_messageInfo_StatusResponse.Size(m)
 }
-func (m *VersionResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_VersionResponse.DiscardUnknown(m)
+func (m *StatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_StatusResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_VersionResponse proto.InternalMessageInfo
+var xxx_messageInfo_StatusResponse proto.InternalMessageInfo
 
-func (m *VersionResponse) GetVersion() string {
+func (m *StatusResponse) GetVersion() string {
 	if m != nil {
 		return m.Version
 	}
 	return ""
 }
 
-func (m *VersionResponse) GetRuntimeName() string {
+func (m *StatusResponse) GetHealthz() string {
 	if m != nil {
-		return m.RuntimeName
+		return m.Healthz
 	}
 	return ""
 }
 
-func (m *VersionResponse) GetRuntimeVersion() string {
+func (m *StatusResponse) GetCurrentKeyID() string {
 	if m != nil {
-		return m.RuntimeVersion
+		return m.CurrentKeyID
 	}
 	return ""
 }
@@ -143,12 +135,14 @@ type DecryptRequest struct {
 	Cipher []byte `protobuf:"bytes,2,opt,name=cipher,proto3" json:"cipher,omitempty"`
 	// UID is a unique identifier for the request.
 	Uid string `protobuf:"bytes,3,opt,name=uid,proto3" json:"uid,omitempty"`
-	// The local kek metadata that was used to encrypt the data.
-	// KMS plugin will use this metadata to decrypt the data.
-	KekMetadata          []byte   `protobuf:"bytes,4,opt,name=kek_metadata,json=kekMetadata,proto3" json:"kek_metadata,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	// The keyID that was provided to the apiserver during encryption.
+	// This represent the KMS KEK that was used to encrypt the data.
+	ObservedKeyID string `protobuf:"bytes,4,opt,name=observedKeyID,proto3" json:"observedKeyID,omitempty"`
+	// Additional metadata that was sent by the KMS plugin during encryption.
+	Metadata             map[string]string `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *DecryptRequest) Reset()         { *m = DecryptRequest{} }
@@ -196,19 +190,30 @@ func (m *DecryptRequest) GetUid() string {
 	return ""
 }
 
-func (m *DecryptRequest) GetKekMetadata() []byte {
+func (m *DecryptRequest) GetObservedKeyID() string {
 	if m != nil {
-		return m.KekMetadata
+		return m.ObservedKeyID
+	}
+	return ""
+}
+
+func (m *DecryptRequest) GetMetadata() map[string]string {
+	if m != nil {
+		return m.Metadata
 	}
 	return nil
 }
 
 type DecryptResponse struct {
 	// The decrypted data.
-	Plain                []byte   `protobuf:"bytes,1,opt,name=plain,proto3" json:"plain,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Plain []byte `protobuf:"bytes,1,opt,name=plain,proto3" json:"plain,omitempty"`
+	// The KMS key ID used to decrypt the data.
+	CurrentKeyID string `protobuf:"bytes,2,opt,name=currentKeyID,proto3" json:"currentKeyID,omitempty"`
+	// Additional metadata that was sent by the KMS plugin.
+	Metadata             map[string]string `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *DecryptResponse) Reset()         { *m = DecryptResponse{} }
@@ -238,6 +243,20 @@ var xxx_messageInfo_DecryptResponse proto.InternalMessageInfo
 func (m *DecryptResponse) GetPlain() []byte {
 	if m != nil {
 		return m.Plain
+	}
+	return nil
+}
+
+func (m *DecryptResponse) GetCurrentKeyID() string {
+	if m != nil {
+		return m.CurrentKeyID
+	}
+	return ""
+}
+
+func (m *DecryptResponse) GetMetadata() map[string]string {
+	if m != nil {
+		return m.Metadata
 	}
 	return nil
 }
@@ -302,12 +321,15 @@ func (m *EncryptRequest) GetUid() string {
 type EncryptResponse struct {
 	// The encrypted data.
 	Cipher []byte `protobuf:"bytes,1,opt,name=cipher,proto3" json:"cipher,omitempty"`
-	// The local kek metadata that was used to encrypt the data.
-	// kek_metadata will be sent back to the KMS plugin to decrypt the data.
-	KekMetadata          []byte   `protobuf:"bytes,2,opt,name=kek_metadata,json=kekMetadata,proto3" json:"kek_metadata,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	// The KMS key ID used to encrypt the local KEK.
+	// This can be used for rotation.
+	CurrentKeyID string `protobuf:"bytes,2,opt,name=currentKeyID,proto3" json:"currentKeyID,omitempty"`
+	// Additional metadata to be stored with the encrypted data.
+	// This metadata can contain the encrypted local KEK that was used to encrypt the DEK.
+	Metadata             map[string]string `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *EncryptResponse) Reset()         { *m = EncryptResponse{} }
@@ -341,47 +363,62 @@ func (m *EncryptResponse) GetCipher() []byte {
 	return nil
 }
 
-func (m *EncryptResponse) GetKekMetadata() []byte {
+func (m *EncryptResponse) GetCurrentKeyID() string {
 	if m != nil {
-		return m.KekMetadata
+		return m.CurrentKeyID
+	}
+	return ""
+}
+
+func (m *EncryptResponse) GetMetadata() map[string]string {
+	if m != nil {
+		return m.Metadata
 	}
 	return nil
 }
 
 func init() {
-	proto.RegisterType((*VersionRequest)(nil), "v2alpha1.VersionRequest")
-	proto.RegisterType((*VersionResponse)(nil), "v2alpha1.VersionResponse")
+	proto.RegisterType((*StatusRequest)(nil), "v2alpha1.StatusRequest")
+	proto.RegisterType((*StatusResponse)(nil), "v2alpha1.StatusResponse")
 	proto.RegisterType((*DecryptRequest)(nil), "v2alpha1.DecryptRequest")
+	proto.RegisterMapType((map[string]string)(nil), "v2alpha1.DecryptRequest.MetadataEntry")
 	proto.RegisterType((*DecryptResponse)(nil), "v2alpha1.DecryptResponse")
+	proto.RegisterMapType((map[string]string)(nil), "v2alpha1.DecryptResponse.MetadataEntry")
 	proto.RegisterType((*EncryptRequest)(nil), "v2alpha1.EncryptRequest")
 	proto.RegisterType((*EncryptResponse)(nil), "v2alpha1.EncryptResponse")
+	proto.RegisterMapType((map[string]string)(nil), "v2alpha1.EncryptResponse.MetadataEntry")
 }
 
 func init() { proto.RegisterFile("service.proto", fileDescriptor_a0b84a42fa06f626) }
 
 var fileDescriptor_a0b84a42fa06f626 = []byte{
-	// 330 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xc1, 0x4e, 0xfa, 0x40,
-	0x10, 0xc6, 0x29, 0xfc, 0xff, 0xa0, 0x03, 0xb6, 0x66, 0x43, 0x4c, 0xf5, 0xa4, 0x7b, 0xc1, 0x78,
-	0x20, 0x11, 0x5f, 0xc0, 0x83, 0x9e, 0x14, 0x0f, 0x35, 0xe1, 0x4a, 0x56, 0x98, 0xc8, 0xa6, 0x74,
-	0xbb, 0x6e, 0xb7, 0x35, 0xbc, 0xab, 0x0f, 0x63, 0xda, 0xdd, 0xd6, 0xb6, 0x68, 0xf4, 0xd6, 0x99,
-	0x9d, 0xfc, 0xbe, 0xf9, 0xbe, 0x0e, 0x1c, 0x25, 0xa8, 0x32, 0xbe, 0xc2, 0xa9, 0x54, 0xb1, 0x8e,
-	0xc9, 0x41, 0x36, 0x63, 0x5b, 0xb9, 0x61, 0xd7, 0xf4, 0x0a, 0xdc, 0x05, 0xaa, 0x84, 0xc7, 0x22,
-	0xc0, 0xb7, 0x14, 0x13, 0x4d, 0x7c, 0x18, 0x64, 0xa6, 0xe3, 0x3b, 0xe7, 0xce, 0xe5, 0x61, 0x50,
-	0x96, 0xf4, 0x1d, 0xbc, 0x6a, 0x36, 0x91, 0xb1, 0x48, 0xf0, 0xe7, 0x61, 0x72, 0x01, 0x23, 0x95,
-	0x0a, 0xcd, 0x23, 0x5c, 0x0a, 0x16, 0xa1, 0xdf, 0x2d, 0x9e, 0x87, 0xb6, 0xf7, 0xc4, 0x22, 0x24,
-	0x13, 0xf0, 0xca, 0x91, 0x12, 0xd2, 0x2b, 0xa6, 0x5c, 0xdb, 0x5e, 0x54, 0xc2, 0xee, 0x1d, 0xae,
-	0xd4, 0x4e, 0xea, 0x5f, 0x97, 0x24, 0x27, 0xd0, 0x5f, 0x71, 0xb9, 0x41, 0x55, 0x28, 0x8e, 0x02,
-	0x5b, 0x91, 0x63, 0xe8, 0xa5, 0x7c, 0x6d, 0x05, 0xf2, 0xcf, 0x7c, 0xc3, 0x10, 0xc3, 0x65, 0x84,
-	0x9a, 0xad, 0x99, 0x66, 0xfe, 0xbf, 0x62, 0x7e, 0x18, 0x62, 0x38, 0xb7, 0x2d, 0x3a, 0x01, 0xaf,
-	0x12, 0xb6, 0x8e, 0xc7, 0xf0, 0x5f, 0x6e, 0x19, 0x37, 0xba, 0xa3, 0xc0, 0x14, 0x34, 0x00, 0xf7,
-	0x5e, 0xfc, 0x71, 0xc3, 0x8a, 0xd0, 0xad, 0x11, 0xf6, 0xf7, 0xa3, 0x8f, 0xe0, 0x55, 0x4c, 0x2b,
-	0xfe, 0x65, 0xce, 0x69, 0x98, 0x6b, 0x5b, 0xe9, 0xee, 0x59, 0x99, 0x7d, 0x38, 0x30, 0x7e, 0xc0,
-	0xdd, 0x9c, 0x09, 0xf6, 0x8a, 0x11, 0x0a, 0xfd, 0x6c, 0x2e, 0x82, 0xdc, 0xc2, 0xc0, 0xe6, 0x4c,
-	0xfc, 0x69, 0x79, 0x17, 0xd3, 0xe6, 0x51, 0x9c, 0x9d, 0x7e, 0xf3, 0x62, 0x76, 0xa2, 0x9d, 0x9c,
-	0x60, 0x53, 0xaa, 0x13, 0x9a, 0x7f, 0xac, 0x4e, 0x68, 0x45, 0x6a, 0x08, 0xd6, 0x6a, 0x9d, 0xd0,
-	0x4c, 0xb4, 0x4e, 0x68, 0xe5, 0x42, 0x3b, 0x2f, 0xfd, 0xe2, 0xb0, 0x6f, 0x3e, 0x03, 0x00, 0x00,
-	0xff, 0xff, 0xf7, 0x94, 0xaf, 0x2f, 0xe9, 0x02, 0x00, 0x00,
+	// 412 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0x4f, 0xeb, 0xd3, 0x40,
+	0x10, 0xfd, 0x6d, 0x62, 0xff, 0x38, 0x36, 0xad, 0x2c, 0x45, 0x63, 0x4f, 0x65, 0x11, 0xed, 0x29,
+	0x60, 0xbd, 0x88, 0x22, 0x88, 0xb6, 0x07, 0x29, 0xbd, 0xa4, 0x9f, 0x60, 0x9b, 0x0e, 0x26, 0x98,
+	0x26, 0x71, 0xb3, 0x09, 0xc4, 0xef, 0x28, 0x9e, 0xfd, 0x2c, 0x5e, 0x24, 0xd9, 0x6d, 0x9a, 0x34,
+	0x56, 0x84, 0x1f, 0xbd, 0xed, 0xcc, 0x6b, 0xe7, 0xcd, 0x7b, 0x33, 0x13, 0xb0, 0x52, 0x14, 0x79,
+	0xe0, 0xa1, 0x93, 0x88, 0x58, 0xc6, 0x74, 0x98, 0x2f, 0x79, 0x98, 0xf8, 0xfc, 0x15, 0x9b, 0x80,
+	0xb5, 0x93, 0x5c, 0x66, 0xa9, 0x8b, 0xdf, 0x32, 0x4c, 0x25, 0xf3, 0x61, 0x7c, 0x4a, 0xa4, 0x49,
+	0x1c, 0xa5, 0x48, 0x6d, 0x18, 0xe4, 0x28, 0xd2, 0x20, 0x8e, 0x6c, 0x32, 0x27, 0x8b, 0x87, 0xee,
+	0x29, 0x2c, 0x11, 0x1f, 0x79, 0x28, 0xfd, 0xef, 0xb6, 0xa1, 0x10, 0x1d, 0x52, 0x06, 0x23, 0x2f,
+	0x13, 0x02, 0x23, 0xb9, 0xc1, 0xe2, 0xf3, 0xca, 0x36, 0x2b, 0xb8, 0x95, 0x63, 0xbf, 0x09, 0x8c,
+	0x57, 0xe8, 0x89, 0x22, 0x91, 0x9a, 0xfc, 0x1f, 0x54, 0x4f, 0xa0, 0xef, 0x05, 0x89, 0x8f, 0xa2,
+	0x62, 0x1a, 0xb9, 0x3a, 0xa2, 0x8f, 0xc1, 0xcc, 0x82, 0x83, 0xae, 0x5f, 0x3e, 0xe9, 0x73, 0xb0,
+	0xe2, 0x7d, 0x29, 0x17, 0x0f, 0x8a, 0xfb, 0x41, 0x85, 0xb5, 0x93, 0xf4, 0x23, 0x0c, 0x8f, 0x28,
+	0xf9, 0x81, 0x4b, 0x6e, 0xf7, 0xe6, 0xe6, 0xe2, 0xd1, 0xf2, 0x85, 0x73, 0x32, 0xc5, 0x69, 0x77,
+	0xe5, 0x6c, 0xf5, 0x0f, 0xd7, 0x91, 0x14, 0x85, 0x5b, 0xff, 0x6f, 0xf6, 0x0e, 0xac, 0x16, 0x54,
+	0x36, 0xf3, 0x15, 0x0b, 0xdd, 0x7a, 0xf9, 0xa4, 0x53, 0xe8, 0xe5, 0x3c, 0xcc, 0x50, 0xfb, 0xa3,
+	0x82, 0xb7, 0xc6, 0x1b, 0xc2, 0x7e, 0x10, 0x98, 0xd4, 0x3c, 0xda, 0xe9, 0x29, 0xf4, 0x92, 0x90,
+	0x07, 0x4a, 0xfc, 0xc8, 0x55, 0x41, 0xc7, 0x4b, 0xa3, 0xeb, 0x25, 0xfd, 0xd4, 0x90, 0x63, 0x56,
+	0x72, 0x5e, 0xfe, 0x45, 0x8e, 0xa2, 0xb9, 0x8d, 0x1e, 0x17, 0xc6, 0xeb, 0xe8, 0x3f, 0x87, 0x59,
+	0xeb, 0x34, 0x9a, 0x3a, 0x3b, 0xa3, 0x64, 0x3f, 0x09, 0x4c, 0xea, 0xa2, 0xda, 0xa3, 0xf3, 0x22,
+	0x90, 0xd6, 0x22, 0xdc, 0xdb, 0xa5, 0x0b, 0xa2, 0x9b, 0xb8, 0xb4, 0xfc, 0x45, 0x60, 0xba, 0xc1,
+	0x62, 0xcb, 0x23, 0xfe, 0x05, 0x8f, 0x18, 0xc9, 0x9d, 0xba, 0x4b, 0xfa, 0x1e, 0xfa, 0xea, 0xec,
+	0xe8, 0xd3, 0x73, 0x4b, 0xad, 0xcb, 0x9c, 0xd9, 0x5d, 0x40, 0xb5, 0xca, 0xee, 0xe8, 0x07, 0x18,
+	0xe8, 0x29, 0x53, 0xfb, 0xda, 0x1e, 0xcf, 0x9e, 0x5d, 0x5d, 0x09, 0x55, 0x41, 0x3b, 0xd0, 0xac,
+	0xd0, 0x1e, 0x69, 0xb3, 0xc2, 0x85, 0x5d, 0xec, 0x6e, 0xdf, 0xaf, 0xbe, 0x2d, 0xaf, 0xff, 0x04,
+	0x00, 0x00, 0xff, 0xff, 0x36, 0x0a, 0x6e, 0x56, 0x6c, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -396,8 +433,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type KeyManagementServiceClient interface {
-	// Version returns the runtime name and runtime version of the KMS provider.
-	Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error)
+	// this API is meant to be polled (or maybe we should make it stream?)
+	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// Execute decryption operation in KMS provider.
 	Decrypt(ctx context.Context, in *DecryptRequest, opts ...grpc.CallOption) (*DecryptResponse, error)
 	// Execute encryption operation in KMS provider.
@@ -412,9 +449,9 @@ func NewKeyManagementServiceClient(cc *grpc.ClientConn) KeyManagementServiceClie
 	return &keyManagementServiceClient{cc}
 }
 
-func (c *keyManagementServiceClient) Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error) {
-	out := new(VersionResponse)
-	err := c.cc.Invoke(ctx, "/v2alpha1.KeyManagementService/Version", in, out, opts...)
+func (c *keyManagementServiceClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
+	out := new(StatusResponse)
+	err := c.cc.Invoke(ctx, "/v2alpha1.KeyManagementService/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -441,8 +478,8 @@ func (c *keyManagementServiceClient) Encrypt(ctx context.Context, in *EncryptReq
 
 // KeyManagementServiceServer is the server API for KeyManagementService service.
 type KeyManagementServiceServer interface {
-	// Version returns the runtime name and runtime version of the KMS provider.
-	Version(context.Context, *VersionRequest) (*VersionResponse, error)
+	// this API is meant to be polled (or maybe we should make it stream?)
+	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	// Execute decryption operation in KMS provider.
 	Decrypt(context.Context, *DecryptRequest) (*DecryptResponse, error)
 	// Execute encryption operation in KMS provider.
@@ -453,8 +490,8 @@ type KeyManagementServiceServer interface {
 type UnimplementedKeyManagementServiceServer struct {
 }
 
-func (*UnimplementedKeyManagementServiceServer) Version(ctx context.Context, req *VersionRequest) (*VersionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
+func (*UnimplementedKeyManagementServiceServer) Status(ctx context.Context, req *StatusRequest) (*StatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (*UnimplementedKeyManagementServiceServer) Decrypt(ctx context.Context, req *DecryptRequest) (*DecryptResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Decrypt not implemented")
@@ -467,20 +504,20 @@ func RegisterKeyManagementServiceServer(s *grpc.Server, srv KeyManagementService
 	s.RegisterService(&_KeyManagementService_serviceDesc, srv)
 }
 
-func _KeyManagementService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VersionRequest)
+func _KeyManagementService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(KeyManagementServiceServer).Version(ctx, in)
+		return srv.(KeyManagementServiceServer).Status(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/v2alpha1.KeyManagementService/Version",
+		FullMethod: "/v2alpha1.KeyManagementService/Status",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KeyManagementServiceServer).Version(ctx, req.(*VersionRequest))
+		return srv.(KeyManagementServiceServer).Status(ctx, req.(*StatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -526,8 +563,8 @@ var _KeyManagementService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*KeyManagementServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Version",
-			Handler:    _KeyManagementService_Version_Handler,
+			MethodName: "Status",
+			Handler:    _KeyManagementService_Status_Handler,
 		},
 		{
 			MethodName: "Decrypt",

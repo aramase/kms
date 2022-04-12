@@ -21,8 +21,8 @@ package v2alpha1;
 
 // This service defines the public APIs for remote KMS provider.
 service KeyManagementService {
-    // Version returns the runtime name and runtime version of the KMS provider.
-    rpc Version(VersionRequest) returns (VersionResponse) {}
+    // this API is meant to be polled (or maybe we should make it stream?)
+    rpc Status(StatusRequest) returns (StatusResponse) {}
 
     // Execute decryption operation in KMS provider.
     rpc Decrypt(DecryptRequest) returns (DecryptResponse) {}
@@ -30,18 +30,18 @@ service KeyManagementService {
     rpc Encrypt(EncryptRequest) returns (EncryptResponse) {}
 }
 
-message VersionRequest {
-    // Version of the KMS plugin API.
-    string version = 1;
-}
+message StatusRequest {}
 
-message VersionResponse {
+message StatusResponse {
     // Version of the KMS plugin API.
     string version = 1;
-    // Name of the KMS provider.
-    string runtime_name = 2;
-    // Version of the KMS provider. The string must be semver-compatible.
-    string runtime_version = 3;
+
+    // anything other than "ok" is failing healthz
+    string healthz = 2;
+
+    // the current write key, triggers rotation via storage version hash
+    // https://github.com/kubernetes/kubernetes/blob/1ea07d482a5ec15afac5ea837585174579fc0f57/staging/src/k8s.io/apiserver/pkg/endpoints/installer.go#L407
+    string currentKeyID = 3;
 }
 
 message DecryptRequest {
@@ -51,14 +51,20 @@ message DecryptRequest {
     bytes cipher = 2;
     // UID is a unique identifier for the request.
     string uid = 3;
-    // The local kek metadata that was used to encrypt the data.
-    // KMS plugin will use this metadata to decrypt the data.
-    bytes kek_metadata = 4;
+    // The keyID that was provided to the apiserver during encryption.
+    // This represent the KMS KEK that was used to encrypt the data.
+    string observedKeyID = 4;
+    // Additional metadata that was sent by the KMS plugin during encryption.
+    map<string, string> metadata = 5;
 }
 
 message DecryptResponse {
     // The decrypted data.
     bytes plain = 1;
+    // The KMS key ID used to decrypt the data.
+    string currentKeyID = 2;
+    // Additional metadata that was sent by the KMS plugin.
+    map<string, string> metadata = 3;
 }
 
 message EncryptRequest {
@@ -73,7 +79,10 @@ message EncryptRequest {
 message EncryptResponse {
     // The encrypted data.
     bytes cipher = 1;
-    // The local kek metadata that was used to encrypt the data.
-    // kek_metadata will be sent back to the KMS plugin to decrypt the data.
-    bytes kek_metadata = 2;
+    // The KMS key ID used to encrypt the local KEK.
+    // This can be used for rotation.
+    string currentKeyID = 2;
+    // Additional metadata to be stored with the encrypted data.
+    // This metadata can contain the encrypted local KEK that was used to encrypt the DEK.
+    map<string, string> metadata = 3;
 }

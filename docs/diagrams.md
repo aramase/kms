@@ -31,9 +31,9 @@ sequenceDiagram
     participant kubeapiserver
     participant kmsplugin
     participant externalkms
-    kubeapiserver->>kmsplugin: decrypt request <br/> {"cipher": "<encrypted DEK>", observedKeyID: "<currentKeyID gotten as part of EncryptResponse>", <br/> "metadata": <metadata gotten as part of EncryptResponse>}
     %% if local KEK in metadata, then using hierarchy
     alt encrypted local KEK is in metadata
+      kubeapiserver->>kmsplugin: decrypt request <br/> {"cipher": "<encrypted DEK>", observedKeyID: "<currentKeyID gotten as part of EncryptResponse>", <br/> "metadata": {"kms.kubernetes.io/local-kek": "<encrypted local KEK>"}}
         alt encrypted local KEK in cache
             kmsplugin->>kmsplugin: decrypt DEK with local KEK
         else encrypted local KEK not in cache
@@ -44,7 +44,9 @@ sequenceDiagram
         end
         kmsplugin->>kubeapiserver: return decrypt response <br/> {"plain": "<decrypted DEK>", currentKeyID: "<remote KEK ID>", <br/> "metadata": {"kms.kubernetes.io/local-kek": "<encrypted local KEK>"}}
     else encrypted local KEK is not in metadata
+        kubeapiserver->>kmsplugin: decrypt request <br/> {"cipher": "<encrypted DEK>", observedKeyID: "<currentKeyID gotten as part of EncryptResponse>", <br/> "metadata": {}}
         kmsplugin->>externalkms: decrypt DEK with remote KEK (same behavior as today)
+        externalkms->>kmsplugin: decrypted DEK
         kmsplugin->>kubeapiserver: return decrypt response <br/> {"plain": "<decrypted DEK>", currentKeyID: "<remote KEK ID>", <br/> "metadata": {}}
     end
 ```

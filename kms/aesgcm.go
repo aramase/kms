@@ -4,6 +4,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
+)
+
+var (
+	ErrEmptyPlaintext = errors.New("plaintext for encryption is empty")
 )
 
 // AESGCM is a struct that contains a key of random bytes and additional
@@ -42,7 +47,8 @@ func FromKey(key []byte) (*AESGCM, error) {
 
 }
 
-// Key returns the internal Key used for encryption.
+// Key returns the internal Key used for encryption. One should be cautious with
+// this value as it is confidential data that must not leak.
 func (c *AESGCM) Key() []byte {
 	return c.key
 }
@@ -50,13 +56,17 @@ func (c *AESGCM) Key() []byte {
 // Encrypt encrypts given plaintext. The nonce is prepended. Therefore any
 // change to the standard nonceSize is a breaking change.
 func (c *AESGCM) Encrypt(plaintext []byte) ([]byte, error) {
+	if len(plaintext) == 0 {
+		return nil, ErrEmptyPlaintext
+	}
+
 	nonce, err := randomBytes(nonceSize)
 	if err != nil {
 		return nil, err
 	}
 
 	return append(
-		nonce,
+		nonce, // TODO: move from append of bytes to protobuf as bytes.
 		c.aesgcm.Seal(nil, nonce, plaintext, nil)...,
 	), nil
 }

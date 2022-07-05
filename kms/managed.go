@@ -73,7 +73,6 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 		return nil, ErrNoCipher
 	}
 
-	// Init ManagedCipher
 	cipher, err := NewAESGCM()
 	if err != nil {
 		klog.Infof("create new cipher: %w", err)
@@ -89,8 +88,6 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 	cache := newCache(cacheSize)
 	cache.Add(encCipher, cipher)
 
-	klog.Infof("new managed cipher is created")
-
 	mc := ManagedCipher{
 		keys:               cache,
 		counter:            0,
@@ -100,8 +97,12 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 		currentLocalKEK:    encCipher,
 	}
 
+	klog.Infof("new managed cipher is created")
+
 	go func() {
-		_ = mc.addFallbackCipher()
+		if err := mc.addFallbackCipher(); err != nil {
+			klog.Infof("set up fallback cipher: %w", err)
+		}
 	}()
 
 	return &mc, nil
@@ -138,6 +139,7 @@ func (m *ManagedCipher) manageKey() error {
 		return nil
 	}
 
+	// If fallback cipher doesn't exist, create one synchronously.
 	if m.fallbackLocalKEK == nil {
 		// In case that an error happened, while setting the fallback cipher
 		// asynchronously, do it now synchronously.
@@ -146,16 +148,21 @@ func (m *ManagedCipher) manageKey() error {
 		}
 	}
 
+	// Switch from current to fallback cipher
 	m.currentRemoteKMSID = m.fallbackRemoteKMSID
 	m.fallbackRemoteKMSID = nil
 	m.currentLocalKEK = m.fallbackLocalKEK
 	m.fallbackLocalKEK = nil
+
+	// Reset checks.
 	m.expires = time.Now().Add(week)
 	m.counter = 0
 
 	go func() {
-		// Add fallback cipher optimistically.
-		_ = m.addFallbackCipher()
+		// Add fallback cipher asynchrohnously and optimistically.
+		if err := m.addFallbackCipher(); err != nil {
+			klog.Infof("set up fallback cipher: %w", err)
+		}
 	}()
 
 	return nil

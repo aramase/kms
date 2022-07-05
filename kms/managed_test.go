@@ -28,7 +28,7 @@ func TestManagedCipher(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, _, pt, err := mc.Decrypt(id, encryptedLocalKEK, ct)
+		pt, err := mc.Decrypt(id, encryptedLocalKEK, ct)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +47,7 @@ func TestManagedCipher(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, _, pt, err := mc.Decrypt(id, encryptedLocalKEK, ct)
+		pt, err := mc.Decrypt(id, encryptedLocalKEK, ct)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -129,13 +129,13 @@ func (k *remoteKMS) Encrypt(pt []byte) ([]byte, []byte, error) {
 	return k.currentKeyID, ct, nil
 }
 
-func (k *remoteKMS) Decrypt(observedID, encryptedKey []byte) ([]byte, []byte, error) {
+func (k *remoteKMS) Decrypt(observedID, encryptedKey []byte) ([]byte, error) {
 	pt, err := k.cipher.Decrypt(encryptedKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return k.currentKeyID, pt, nil
+	return pt, nil
 }
 
 type safeMap struct {

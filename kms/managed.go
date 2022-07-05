@@ -53,7 +53,7 @@ type ManagedCipher struct {
 // to support remote state.
 type EncrypterDecrypter interface {
 	Encrypt(plainKey []byte) (currentKeyID, encryptedKey []byte, err error)
-	Decrypt(observedID, encryptedKey []byte) (currentKeyID, plainKey []byte, err error)
+	Decrypt(observedID, encryptedKey []byte) (plainKey []byte, err error)
 }
 
 // CurrentKeyID returns the currently assumed remote Key ID.
@@ -148,22 +148,22 @@ func (m *ManagedCipher) Encrypt(pt []byte) ([]byte, []byte, []byte, error) {
 
 // DecryptRemotely decrypts given ciphertext by sendin it directly to the
 // remote kms.
-func (m *ManagedCipher) DecryptRemotely(id, ct []byte) ([]byte, []byte, error) {
+func (m *ManagedCipher) DecryptRemotely(id, ct []byte) ([]byte, error) {
 	return m.upstreamCipher.Decrypt(id, ct)
 }
 
 // Decrypt decrypts the given ciphertext. If the given encrypted key is unknown,
 // KMS upstream is asked for decryption of the encrypted key.
-func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, []byte, []byte, error) {
+func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, error) {
 	cipher, ok := m.keys.Get(encKey)
 	if ok {
 		pt, err := cipher.Decrypt(ct)
 		if err != nil {
 			klog.Infof("decrypt ciphertext: %w", err)
-			return nil, nil, nil, err
+			return nil, err
 		}
 
-		return m.remoteKMSID, encKey, pt, nil
+		return pt, nil
 	}
 
 	klog.Infof(
@@ -172,7 +172,7 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, []byt
 	)
 
 	// plainKey is a plaintext key and should be handled cautiously.
-	remoteKeyID, plainKey, err := m.upstreamCipher.Decrypt(observedKeyID, encKey)
+	plainKey, err := m.upstreamCipher.Decrypt(observedKeyID, encKey)
 	if err != nil {
 		klog.Infof(
 			"decrypt key (%q) by upstream:",
@@ -180,12 +180,12 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, []byt
 			err,
 		)
 
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	if !bytes.Equal(m.remoteKMSID, remoteKeyID) {
+	if !bytes.Equal(m.remoteKMSID, observedKeyID) {
 		m.m.Lock()
-		m.remoteKMSID = remoteKeyID
+		m.remoteKMSID = observedKeyID
 		m.m.Unlock()
 	}
 
@@ -196,7 +196,7 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, []byt
 			base64.StdEncoding.EncodeToString(encKey),
 			err,
 		)
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	m.keys.Add(encKey, cipher)
@@ -209,8 +209,8 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, []byt
 	pt, err := cipher.Decrypt(ct)
 	if err != nil {
 		klog.Infof("decrypt ciphertext: %w", err)
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	return m.remoteKMSID, encKey, pt, nil
+	return pt, nil
 }

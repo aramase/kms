@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+
 	"k8s.io/klog/v2"
 
 	"github.com/aramase/kms/kms"
@@ -43,9 +44,9 @@ func NewKeyManagementService(upstreamCipher kms.EncrypterDecrypter) (api.KeyMana
 // Status returns version data to verify the state of the service.
 func (s *Service) Status(ctx context.Context, _ *api.StatusRequest) (*api.StatusResponse, error) {
 	return &api.StatusResponse{
-		Version:      version,
-		Healthz:      "ok",
-		CurrentKeyID: base64.StdEncoding.EncodeToString(s.managedKeys.CurrentKeyID()),
+		Version: version,
+		Healthz: "ok",
+		KeyId:   base64.StdEncoding.EncodeToString(s.managedKeys.CurrentKeyID()),
 	}, nil
 }
 
@@ -57,21 +58,15 @@ func (s *Service) Status(ctx context.Context, _ *api.StatusRequest) (*api.Status
 func (s *Service) Decrypt(ctx context.Context, req *api.DecryptRequest) (*api.DecryptResponse, error) {
 	klog.Infof("decrypt request (id: %q) received", req.Uid)
 
-	observedKeyID, err := base64.StdEncoding.DecodeString(req.ObservedKeyID)
+	keyID, err := base64.StdEncoding.DecodeString(req.KeyId)
 	if err != nil {
 		klog.Infof("ObservedKeyID decode attempt failed for request (id: %q): %w", req.Uid, err)
 		return nil, err
 	}
 
-	encryptedLocalKEKStr, ok := req.Metadata[encryptedLocalKEKKey]
+	encryptedLocalKEK, ok := req.Annotations[encryptedLocalKEKKey]
 	if ok {
-		encryptedLocalKEK, err := base64.StdEncoding.DecodeString(encryptedLocalKEKStr)
-		if err != nil {
-			klog.Infof("encryptedLocalKEK decode attempt failed for request (id: %q): %w", req.Uid, err)
-			return nil, err
-		}
-
-		remoteKMSID, encKey, pt, err := s.managedKeys.Decrypt(observedKeyID, encryptedLocalKEK, req.Cipher)
+		pt, err := s.managedKeys.Decrypt(keyID, encryptedLocalKEK, req.Ciphertext)
 		if err != nil {
 			klog.Infof("decrypt attempt (id: %q) failed: %w", req.Uid, err)
 			return nil, err
@@ -80,22 +75,17 @@ func (s *Service) Decrypt(ctx context.Context, req *api.DecryptRequest) (*api.De
 		klog.Infof("decrypt request (id: %q) succeeded", req.Uid)
 
 		return &api.DecryptResponse{
-			CurrentKeyID: base64.StdEncoding.EncodeToString(remoteKMSID),
-			Plain:        pt,
-			Metadata: map[string]string{
-				encryptedLocalKEKKey: base64.StdEncoding.EncodeToString(encKey),
-			},
+			Plaintext: pt,
 		}, nil
 	}
 
-	id, pt, err := s.managedKeys.DecryptRemotely(observedKeyID, req.Cipher)
+	pt, err := s.managedKeys.DecryptRemotely(keyID, req.Ciphertext)
 	if err != nil {
 		klog.Infof("decrypt remotely (id: %q) failed: %w", req.Uid, err)
 	}
 
 	return &api.DecryptResponse{
-		Plain:        pt,
-		CurrentKeyID: base64.StdEncoding.EncodeToString(id),
+		Plaintext: pt,
 	}, nil
 }
 
@@ -109,7 +99,7 @@ func (s *Service) Decrypt(ctx context.Context, req *api.DecryptRequest) (*api.De
 func (s *Service) Encrypt(ctx context.Context, req *api.EncryptRequest) (*api.EncryptResponse, error) {
 	klog.Infof("encrypt request received (id: %q)", req.Uid)
 
-	remoteKeyID, encryptedLocalKEK, ct, err := s.managedKeys.Encrypt(req.Plain)
+	remoteKeyID, encryptedLocalKEK, ct, err := s.managedKeys.Encrypt(req.Plaintext)
 	if err != nil {
 		klog.Infof("encrypt attempt (id: %q) failed: %w", req.Uid, err)
 		return nil, err
@@ -118,10 +108,10 @@ func (s *Service) Encrypt(ctx context.Context, req *api.EncryptRequest) (*api.En
 	klog.Infof("encrypt request (id: %q) succeeded", req.Uid)
 
 	return &api.EncryptResponse{
-		CurrentKeyID: base64.StdEncoding.EncodeToString(remoteKeyID),
-		Cipher:       ct,
-		Metadata: map[string]string{
-			encryptedLocalKEKKey: base64.StdEncoding.EncodeToString(encryptedLocalKEK),
+		KeyId:      base64.StdEncoding.EncodeToString(remoteKeyID),
+		Ciphertext: ct,
+		Annotations: map[string][]byte{
+			encryptedLocalKEKKey: encryptedLocalKEK,
 		},
 	}, nil
 }

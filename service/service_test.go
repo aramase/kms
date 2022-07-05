@@ -22,41 +22,40 @@ func TestService(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var keyID string
 	var ciphertext []byte
-	var ciphertextMetadata map[string]string
+	var ciphertextAnnotations map[string][]byte
 
 	plaintext := []byte("lorem ipsum")
-	version := "something"
 	t.Run("encryption and decryption", func(t *testing.T) {
-
 		encryptResponse, err := svc.Encrypt(context.TODO(), &api.EncryptRequest{
-			Version: version,
-			Plain:   plaintext,
-			Uid:     "123",
+			Plaintext: plaintext,
+			Uid:       "123",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		decryptResponse, err := svc.Decrypt(context.TODO(), &api.DecryptRequest{
-			Version:  version,
-			Cipher:   encryptResponse.Cipher,
-			Uid:      "456",
-			Metadata: encryptResponse.Metadata,
+			Ciphertext:  encryptResponse.Ciphertext,
+			Uid:         "456",
+			KeyId:       encryptResponse.KeyId,
+			Annotations: encryptResponse.Annotations,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if !bytes.Equal(plaintext, decryptResponse.Plain) {
+		if !bytes.Equal(plaintext, decryptResponse.Plaintext) {
 			t.Fatalf(
 				"want: %s, have: %s",
-				string(plaintext), string(decryptResponse.Plain),
+				string(plaintext), string(decryptResponse.Plaintext),
 			)
 		}
 
-		ciphertext = encryptResponse.Cipher
-		ciphertextMetadata = encryptResponse.Metadata
+		keyID = encryptResponse.KeyId
+		ciphertext = encryptResponse.Ciphertext
+		ciphertextAnnotations = encryptResponse.Annotations
 	})
 
 	t.Run("decrypt by other kms plugin", func(t *testing.T) {
@@ -66,19 +65,19 @@ func TestService(t *testing.T) {
 		}
 
 		decryptResponse, err := anotherSvc.Decrypt(context.TODO(), &api.DecryptRequest{
-			Version:  version,
-			Cipher:   ciphertext,
-			Uid:      "789",
-			Metadata: ciphertextMetadata,
+			Ciphertext:  ciphertext,
+			Uid:         "789",
+			KeyId:       keyID,
+			Annotations: ciphertextAnnotations,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if !bytes.Equal(plaintext, decryptResponse.Plain) {
+		if !bytes.Equal(plaintext, decryptResponse.Plaintext) {
 			t.Errorf(
 				"want: %s, have: %s",
-				string(plaintext), string(decryptResponse.Plain),
+				string(plaintext), string(decryptResponse.Plaintext),
 			)
 		}
 	})
@@ -90,13 +89,9 @@ func TestService(t *testing.T) {
 		}
 
 		svc.Decrypt(context.TODO(), &api.DecryptRequest{
-			Cipher: ct,
-			Uid:    "135",
+			Ciphertext: ct,
+			Uid:        "135",
 		})
-	})
-
-	t.Run("status check", func(t *testing.T) {
-
 	})
 }
 
@@ -126,11 +121,11 @@ func (k *remoteKMS) Encrypt(pt []byte) ([]byte, []byte, error) {
 	return k.currentKeyID, ct, nil
 }
 
-func (k *remoteKMS) Decrypt(observedID, encryptedKey []byte) ([]byte, []byte, error) {
+func (k *remoteKMS) Decrypt(observedID, encryptedKey []byte) ([]byte, error) {
 	pt, err := k.cipher.Decrypt(encryptedKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return k.currentKeyID, pt, nil
+	return pt, nil
 }

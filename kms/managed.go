@@ -30,8 +30,7 @@ var (
 	// ErrNoCipher means that there is no upstream kms given and therefore the keys in use can't be protected.
 	ErrNoCipher = errors.New("no upstream encryption service was specified")
 
-	// expirationTime of a Week
-	expirationTime = time.Hour * 24 * 7
+	week = time.Hour * 24 * 7
 )
 
 // ManagedCipher is a set of keys. Only one key is used for encryption at one
@@ -52,8 +51,8 @@ type ManagedCipher struct {
 // EncrypterDecrypter is a default encryption / decryption interface with an ID
 // to support remote state.
 type EncrypterDecrypter interface {
-	Encrypt(plainKey []byte) (currentKeyID, encryptedKey []byte, err error)
-	Decrypt(observedID, encryptedKey []byte) (plainKey []byte, err error)
+	Encrypt(plaintext []byte) (keyID, ciphertext []byte, err error)
+	Decrypt(keyID, ciphertext []byte) (plaintext []byte, err error)
 }
 
 // CurrentKeyID returns the currently assumed remote Key ID.
@@ -86,31 +85,36 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 }
 
 func (m *ManagedCipher) manageKey() error {
+	// Expensive lock that stops the world until we have a new key set up.
 	m.m.Lock()
 	defer m.m.Unlock()
 
+	// If the key is safe to use, do nothing.
 	m.counter = m.counter + 1
-
 	if m.counter < CollisionTolerance && time.Now().Before(m.expires) {
 		return nil
 	}
 
+	// If the key is not so safe to use, create a new key and setup the cipher
+	// anew.
 	cipher, err := NewAESGCM()
 	if err != nil {
 		klog.Infof("create new cipher: %w", err)
 		return err
 	}
 
-	remoteID, encKey, err := m.upstreamCipher.Encrypt(cipher.Key())
+	// Let upstream KMS encrypt the new key in use.
+	keyID, encKey, err := m.upstreamCipher.Encrypt(cipher.Key())
 	if err != nil {
 		klog.Infof("encrypt with upstream: %w", err)
 		return err
 	}
 
+	// Update the current state
 	m.keys.Add(encKey, cipher)
 	m.currentLocalKEK = encKey
-	m.remoteKMSID = remoteID
-	m.expires = time.Now().Add(expirationTime)
+	m.remoteKMSID = keyID
+	m.expires = time.Now().Add(week)
 	m.counter = 0
 
 	klog.Infof("created key successfully and added to set")
@@ -128,11 +132,11 @@ func (m *ManagedCipher) Encrypt(pt []byte) ([]byte, []byte, []byte, error) {
 	cipher, ok := m.keys.Get(m.currentLocalKEK)
 	if !ok {
 		klog.Infof(
-			"key (%q) has no value in cache",
+			"current plugin key (%q) has no value in cache",
 			base64.StdEncoding.EncodeToString(m.currentLocalKEK),
 		)
 		return nil, nil, nil, fmt.Errorf(
-			"unknown key (%q)",
+			"plugin is broken, current key is unknown (%q)",
 			base64.StdEncoding.EncodeToString(m.currentLocalKEK),
 		)
 	}
@@ -154,7 +158,8 @@ func (m *ManagedCipher) DecryptRemotely(id, ct []byte) ([]byte, error) {
 
 // Decrypt decrypts the given ciphertext. If the given encrypted key is unknown,
 // KMS upstream is asked for decryption of the encrypted key.
-func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, error) {
+func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
+	// Lookup key from cache.
 	cipher, ok := m.keys.Get(encKey)
 	if ok {
 		pt, err := cipher.Decrypt(ct)
@@ -172,7 +177,7 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, error
 	)
 
 	// plainKey is a plaintext key and should be handled cautiously.
-	plainKey, err := m.upstreamCipher.Decrypt(observedKeyID, encKey)
+	plainKey, err := m.upstreamCipher.Decrypt(keyID, encKey)
 	if err != nil {
 		klog.Infof(
 			"decrypt key (%q) by upstream:",
@@ -183,12 +188,14 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, error
 		return nil, err
 	}
 
-	if !bytes.Equal(m.remoteKMSID, observedKeyID) {
+	// Assume that keyID is the most up to date upstream KMS key.
+	if !bytes.Equal(m.remoteKMSID, keyID) {
 		m.m.Lock()
-		m.remoteKMSID = observedKeyID
+		m.remoteKMSID = keyID
 		m.m.Unlock()
 	}
 
+	// Set up the cipher for the given key.
 	cipher, err = FromKey(plainKey)
 	if err != nil {
 		klog.Infof(
@@ -199,13 +206,14 @@ func (m *ManagedCipher) Decrypt(observedKeyID, encKey, ct []byte) ([]byte, error
 		return nil, err
 	}
 
+	// Add to cache.
 	m.keys.Add(encKey, cipher)
-
 	klog.Infof(
 		"key (%q) from ciphertext added to cache",
 		base64.StdEncoding.EncodeToString(encKey),
 	)
 
+	// Eventually decrypt with new key.
 	pt, err := cipher.Decrypt(ct)
 	if err != nil {
 		klog.Infof("decrypt ciphertext: %w", err)

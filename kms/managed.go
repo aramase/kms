@@ -1,7 +1,6 @@
 package kms
 
 import (
-	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -217,6 +216,8 @@ func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
 		return pt, nil
 	}
 
+	// not in cache flow
+
 	klog.Infof(
 		"key (%q) has no value in cache",
 		base64.StdEncoding.EncodeToString(encKey),
@@ -232,13 +233,6 @@ func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
 		)
 
 		return nil, err
-	}
-
-	// Assume that keyID is the most up to date upstream KMS key.
-	if !bytes.Equal(m.currentRemoteKMSID, keyID) {
-		m.m.Lock()
-		m.currentRemoteKMSID = keyID
-		m.m.Unlock()
 	}
 
 	// Set up the cipher for the given key.

@@ -39,10 +39,14 @@ type ManagedCipher struct {
 	counter uint32
 	expires time.Time
 
-	keys            *cache
-	currentLocalKEK []byte
+	keys *cache
 
-	remoteKMSID    []byte
+	currentRemoteKMSID []byte
+	currentLocalKEK    []byte
+
+	fallbackRemoteKMSID []byte
+	fallbackLocalKEK    []byte
+
 	upstreamCipher EncrypterDecrypter
 
 	m sync.Mutex
@@ -57,7 +61,7 @@ type EncrypterDecrypter interface {
 
 // CurrentKeyID returns the currently assumed remote Key ID.
 func (m *ManagedCipher) CurrentKeyID() []byte {
-	return m.remoteKMSID
+	return m.currentRemoteKMSID
 }
 
 // NewManagedCipher returns a pointer to a ManagedCipher. It is initialized with
@@ -69,25 +73,64 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 		return nil, ErrNoCipher
 	}
 
-	mk := ManagedCipher{
-		keys:           newCache(cacheSize),
-		upstreamCipher: upstreamCipher,
-	}
-
-	if err := mk.manageKey(); err != nil {
-		klog.Infof("create managed cipher: %w", err)
+	// Init ManagedCipher
+	cipher, err := NewAESGCM()
+	if err != nil {
+		klog.Infof("create new cipher: %w", err)
 		return nil, err
 	}
 
+	keyID, encCipher, err := upstreamCipher.Encrypt(cipher.Key())
+	if err != nil {
+		klog.Infof("encrypt with upstream: %w", err)
+		return nil, err
+	}
+
+	cache := newCache(cacheSize)
+	cache.Add(encCipher, cipher)
+
 	klog.Infof("new managed cipher is created")
 
-	return &mk, nil
+	mc := ManagedCipher{
+		keys:               cache,
+		counter:            0,
+		expires:            time.Now().Add(week),
+		upstreamCipher:     upstreamCipher,
+		currentRemoteKMSID: keyID,
+		currentLocalKEK:    encCipher,
+	}
+
+	go func() {
+		_ = mc.addFallbackCipher()
+	}()
+
+	return &mc, nil
+}
+
+func (m *ManagedCipher) addFallbackCipher() error {
+	// TODO: Add non-nil-guard?
+	cipher, err := NewAESGCM()
+	if err != nil {
+		klog.Infof("create new currentCipher: %w", err)
+		return err
+	}
+
+	keyID, encCipher, err := m.upstreamCipher.Encrypt(cipher.Key())
+	if err != nil {
+		klog.Infof("encrypt with upstream: %w", err)
+		return err
+	}
+
+	m.keys.Add(encCipher, cipher)
+	m.fallbackLocalKEK = encCipher
+	m.fallbackRemoteKMSID = keyID
+
+	return nil
 }
 
 func (m *ManagedCipher) manageKey() error {
-	// Expensive lock that stops the world until we have a new key set up.
 	m.m.Lock()
-	defer m.m.Unlock()
+	defer m.m.Unlock() // bound to main thread, TODO add test case
 
 	// If the key is safe to use, do nothing.
 	m.counter = m.counter + 1
@@ -95,29 +138,25 @@ func (m *ManagedCipher) manageKey() error {
 		return nil
 	}
 
-	// If the key is not so safe to use, create a new key and setup the cipher
-	// anew.
-	cipher, err := NewAESGCM()
-	if err != nil {
-		klog.Infof("create new cipher: %w", err)
-		return err
+	if m.fallbackLocalKEK == nil {
+		// In case that an error happened, while setting the fallback cipher
+		// asynchronously, do it now synchronously.
+		if err := m.addFallbackCipher(); err != nil {
+			return err
+		}
 	}
 
-	// Let upstream KMS encrypt the new key in use.
-	keyID, encKey, err := m.upstreamCipher.Encrypt(cipher.Key())
-	if err != nil {
-		klog.Infof("encrypt with upstream: %w", err)
-		return err
-	}
-
-	// Update the current state
-	m.keys.Add(encKey, cipher)
-	m.currentLocalKEK = encKey
-	m.remoteKMSID = keyID
+	m.currentRemoteKMSID = m.fallbackRemoteKMSID
+	m.fallbackRemoteKMSID = nil
+	m.currentLocalKEK = m.fallbackLocalKEK
+	m.fallbackLocalKEK = nil
 	m.expires = time.Now().Add(week)
 	m.counter = 0
 
-	klog.Infof("created key successfully and added to set")
+	go func() {
+		// Add fallback cipher optimistically.
+		_ = m.addFallbackCipher()
+	}()
 
 	return nil
 }
@@ -147,7 +186,7 @@ func (m *ManagedCipher) Encrypt(pt []byte) ([]byte, []byte, []byte, error) {
 		return nil, nil, nil, err
 	}
 
-	return m.remoteKMSID, m.currentLocalKEK, ct, nil
+	return m.currentRemoteKMSID, m.currentLocalKEK, ct, nil
 }
 
 // DecryptRemotely decrypts given ciphertext by sendin it directly to the
@@ -189,9 +228,9 @@ func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
 	}
 
 	// Assume that keyID is the most up to date upstream KMS key.
-	if !bytes.Equal(m.remoteKMSID, keyID) {
+	if !bytes.Equal(m.currentRemoteKMSID, keyID) {
 		m.m.Lock()
-		m.remoteKMSID = keyID
+		m.currentRemoteKMSID = keyID
 		m.m.Unlock()
 	}
 

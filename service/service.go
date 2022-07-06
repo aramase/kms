@@ -15,7 +15,7 @@ const (
 	encryptedLocalKEKKey = "encryptedLocalKEK"
 )
 
-// Service offers encryption and decryption cache upfront of an upstream KMS.
+// Service offers encryption and decryption cache upfront of an remote KMS.
 type Service struct {
 	managedKeys *kms.ManagedCipher
 }
@@ -25,10 +25,10 @@ var (
 )
 
 // NewKeyManagementService creates an v2alpha1.KeyManagementServiceServer that
-// can be used for encryption and decryption, if given an upstream encryption
-// service (upstream KMS).
-func NewKeyManagementService(upstreamCipher kms.EncrypterDecrypter) (api.KeyManagementServiceServer, error) {
-	mk, err := kms.NewManagedCipher(upstreamCipher)
+// can be used for encryption and decryption, if given an remote encryption
+// service (remote KMS).
+func NewKeyManagementService(remoteCipher kms.EncrypterDecrypter) (api.KeyManagementServiceServer, error) {
+	mk, err := kms.NewManagedCipher(remoteCipher)
 	if err != nil {
 		klog.Infof("create key management service: %w", err)
 		return nil, err

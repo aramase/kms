@@ -13,7 +13,7 @@ import (
 func TestManagedCipher(t *testing.T) {
 	var id, encryptedLocalKEK, ct []byte
 	plaintext := []byte("lorem ipsum")
-	remoteKMS, err := newUpstreamKMS([]byte("helloworld"))
+	remoteKMS, err := newRemoteKMS([]byte("helloworld"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ var (
 	_ kms.EncrypterDecrypter = (*remoteKMS)(nil)
 )
 
-func newUpstreamKMS(keyID []byte) (*remoteKMS, error) {
+func newRemoteKMS(keyID []byte) (*remoteKMS, error) {
 	cipher, err := kms.NewAESGCM()
 	if err != nil {
 		return nil, err

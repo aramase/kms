@@ -12,7 +12,7 @@ import (
 )
 
 func TestService(t *testing.T) {
-	kms, err := newUpstreamKMS([]byte("hello world"))
+	kms, err := newRemoteKMS([]byte("hello world"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ type remoteKMS struct {
 	cipher       *kms.AESGCM
 }
 
-func newUpstreamKMS(id []byte) (*remoteKMS, error) {
+func newRemoteKMS(id []byte) (*remoteKMS, error) {
 	cipher, err := kms.NewAESGCM()
 	if err != nil {
 		return nil, err

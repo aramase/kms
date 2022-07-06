@@ -37,21 +37,3 @@ func (c *cache) Get(encKey []byte) (*AESGCM, bool) {
 
 	return key, true
 }
-
-func (c *cache) Remove(encKey []byte) {
-	id := base64.StdEncoding.EncodeToString(encKey)
-
-	c.lruCache.Remove(id)
-}
-
-func (c *cache) RemoveOldest() {
-	c.lruCache.RemoveOldest()
-}
-
-func (c *cache) Len() int {
-	return c.lruCache.Len()
-}
-
-func (c *cache) Clear() {
-	c.lruCache.Clear()
-}

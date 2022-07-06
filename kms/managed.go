@@ -54,6 +54,7 @@ type ManagedCipher struct {
 // EncrypterDecrypter is a default encryption / decryption interface with an ID
 // to support remote state.
 type EncrypterDecrypter interface {
+	// TODO: consider adding context to interface.
 	Encrypt(plaintext []byte) (keyID, ciphertext []byte, err error)
 	Decrypt(keyID, ciphertext []byte) (plaintext []byte, err error)
 }
@@ -108,7 +109,6 @@ func NewManagedCipher(remoteCipher EncrypterDecrypter) (*ManagedCipher, error) {
 }
 
 func (m *ManagedCipher) addFallbackCipher() error {
-	// TODO: Add non-nil-guard check on fallback values?
 	cipher, err := NewAESGCM()
 	if err != nil {
 		klog.Infof("create new currentCipher: %w", err)

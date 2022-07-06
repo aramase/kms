@@ -10,7 +10,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// TODO@ibihim: decide to use remote or upstream, but not both
 const (
 	// MaxUsage with 2^21 is a very defensive value. 2^32 is more commonly used.
 	MaxUsage = 2097151
@@ -27,8 +26,8 @@ const (
 var (
 	// ErrKeyExpired means that the expiration time of a key has come and it shouldn't be used any more.
 	ErrKeyExpired = errors.New("key is out of date and shouldn't be used anymore for encryption")
-	// ErrNoCipher means that there is no upstream kms given and therefore the keys in use can't be protected.
-	ErrNoCipher = errors.New("no upstream encryption service was specified")
+	// ErrNoCipher means that there is no remote kms given and therefore the keys in use can't be protected.
+	ErrNoCipher = errors.New("no remote encryption service was specified")
 
 	week = time.Hour * 24 * 7
 )
@@ -47,7 +46,7 @@ type ManagedCipher struct {
 	fallbackRemoteKMSID []byte
 	fallbackLocalKEK    []byte
 
-	upstreamCipher EncrypterDecrypter
+	remoteKMS EncrypterDecrypter
 
 	m sync.Mutex
 }
@@ -65,11 +64,11 @@ func (m *ManagedCipher) CurrentKeyID() []byte {
 }
 
 // NewManagedCipher returns a pointer to a ManagedCipher. It is initialized with
-// a cache, a reference to an upstream cipher (like a KMS service or HMS) and
-// does an initial encryption call to the upstream cipher.
-func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error) {
-	if upstreamCipher == nil {
-		klog.Infof("create managed cipher without upstream encryption failed")
+// a cache, a reference to an remote cipher (like a KMS service or HMS) and
+// does an initial encryption call to the remote cipher.
+func NewManagedCipher(remoteCipher EncrypterDecrypter) (*ManagedCipher, error) {
+	if remoteCipher == nil {
+		klog.Infof("create managed cipher without remote encryption failed")
 		return nil, ErrNoCipher
 	}
 
@@ -79,9 +78,9 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 		return nil, err
 	}
 
-	keyID, encCipher, err := upstreamCipher.Encrypt(cipher.Key())
+	keyID, encCipher, err := remoteCipher.Encrypt(cipher.Key())
 	if err != nil {
-		klog.Infof("encrypt with upstream: %w", err)
+		klog.Infof("encrypt with remote: %w", err)
 		return nil, err
 	}
 
@@ -92,7 +91,7 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 		keys:               cache,
 		counter:            0,
 		expires:            time.Now().Add(week),
-		upstreamCipher:     upstreamCipher,
+		remoteKMS:          remoteCipher,
 		currentRemoteKMSID: keyID,
 		currentLocalKEK:    encCipher,
 	}
@@ -116,9 +115,9 @@ func (m *ManagedCipher) addFallbackCipher() error {
 		return err
 	}
 
-	keyID, encCipher, err := m.upstreamCipher.Encrypt(cipher.Key())
+	keyID, encCipher, err := m.remoteKMS.Encrypt(cipher.Key())
 	if err != nil {
-		klog.Infof("encrypt with upstream: %w", err)
+		klog.Infof("encrypt with remote: %w", err)
 		return err
 	}
 
@@ -169,7 +168,7 @@ func (m *ManagedCipher) manageKey() error {
 }
 
 // Encrypt encrypts given plaintext and returns the key used in encrypted form.
-// The encrypted key is encrypted by the given upstream KMS.
+// The encrypted key is encrypted by the given remote KMS.
 func (m *ManagedCipher) Encrypt(pt []byte) ([]byte, []byte, []byte, error) {
 	if err := m.manageKey(); err != nil {
 		return nil, nil, nil, fmt.Errorf("manage keys upfront of an encryption: %w", err)
@@ -199,11 +198,11 @@ func (m *ManagedCipher) Encrypt(pt []byte) ([]byte, []byte, []byte, error) {
 // DecryptRemotely decrypts given ciphertext by sendin it directly to the
 // remote kms.
 func (m *ManagedCipher) DecryptRemotely(id, ct []byte) ([]byte, error) {
-	return m.upstreamCipher.Decrypt(id, ct)
+	return m.remoteKMS.Decrypt(id, ct)
 }
 
 // Decrypt decrypts the given ciphertext. If the given encrypted key is unknown,
-// KMS upstream is asked for decryption of the encrypted key.
+// Remote KMS is asked for decryption of the encrypted key.
 func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
 	// Lookup key from cache.
 	cipher, ok := m.keys.Get(encKey)
@@ -225,10 +224,10 @@ func (m *ManagedCipher) Decrypt(keyID, encKey, ct []byte) ([]byte, error) {
 	)
 
 	// plainKey is a plaintext key and should be handled cautiously.
-	plainKey, err := m.upstreamCipher.Decrypt(keyID, encKey)
+	plainKey, err := m.remoteKMS.Decrypt(keyID, encKey)
 	if err != nil {
 		klog.Infof(
-			"decrypt key (%q) by upstream:",
+			"decrypt key (%q) by remote:",
 			base64.StdEncoding.EncodeToString(encKey),
 			err,
 		)

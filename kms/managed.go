@@ -10,9 +10,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// TODO@ibihim: decide to use remote or upstream, but not both
 const (
-	// CollisionTolerance with 2^21 as a very defensive value. 2^32 is more commonly used.
-	CollisionTolerance = 2097151
+	// MaxUsage with 2^21 is a very defensive value. 2^32 is more commonly used.
+	MaxUsage = 2097151
 	// keySize is the key size in bytes
 	keySize = 128 / 8
 	// nonceSize is the size of the nonce. Do not change, without breaking version change.
@@ -108,7 +109,7 @@ func NewManagedCipher(upstreamCipher EncrypterDecrypter) (*ManagedCipher, error)
 }
 
 func (m *ManagedCipher) addFallbackCipher() error {
-	// TODO: Add non-nil-guard?
+	// TODO: Add non-nil-guard check on fallback values?
 	cipher, err := NewAESGCM()
 	if err != nil {
 		klog.Infof("create new currentCipher: %w", err)
@@ -130,11 +131,11 @@ func (m *ManagedCipher) addFallbackCipher() error {
 
 func (m *ManagedCipher) manageKey() error {
 	m.m.Lock()
-	defer m.m.Unlock() // bound to main thread, TODO add test case
+	defer m.m.Unlock() // should be bound to main thread
 
 	// If the key is safe to use, do nothing.
 	m.counter = m.counter + 1
-	if m.counter < CollisionTolerance && time.Now().Before(m.expires) {
+	if m.counter < MaxUsage && time.Now().Before(m.expires) {
 		return nil
 	}
 

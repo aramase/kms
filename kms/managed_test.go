@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/aramase/kms/kms"
 )
@@ -62,80 +63,120 @@ func TestManagedCipher(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	remoteKMS, err := newUpstreamKMS([]byte("helloworld"))
+	// Set up remoteKMS and managedCipher
+	sleepDuration := 15 * time.Minute
+	_, ok := t.Deadline()
+	if !ok {
+		t.Logf("Please consider using -timeout of %s", sleepDuration)
+	}
+
+	cipher, err := kms.NewAESGCM()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mc, err := kms.NewManagedCipher(remoteKMS)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ids := make(map[string]struct{})
-	plaintext := []byte("lorem ipsum")
-
-	beyondCollision := kms.CollisionTolerance + 5
-	var wg sync.WaitGroup
-	var m safeMap
-
-	// this might take a couple of seconds
-	for i := 0; i < beyondCollision; i++ {
-		wg.Add(1)
-
-		go func(t *testing.T, ids map[string]struct{}) {
-			defer wg.Done()
-
-			_, encKey, _, err := mc.Encrypt(plaintext)
-			if err != nil {
-				t.Error(err)
+	counter := 0
+	remoteKMS := remoteKMS{
+		encrypt: func(plaintext []byte) ([]byte, []byte, error) {
+			counter = counter + 1
+			if counter > 2 {
+				time.Sleep(sleepDuration)
+				t.Fatal("local kek rotation shouldn't lock the main thread")
 			}
 
-			id := base64.StdEncoding.EncodeToString(encKey)
-			m.Add(id)
-		}(t, ids)
+			ct, err := cipher.Encrypt(plaintext)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return []byte("112358"), ct, nil
+		},
+		decrypt: func(keyID, ciphertext []byte) ([]byte, error) {
+			return cipher.Decrypt(ciphertext)
+		},
 	}
 
-	wg.Wait()
-
-	if m.Len() != 2 {
-		t.Errorf("Expected 2 encrypted keys, have: %d", len(ids))
+	mc, err := kms.NewManagedCipher(&remoteKMS)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	t.Run("should work to use a different local kek (cipher) after expiry", func(t *testing.T) {
+		// Encrypt 2 million times to reach the state we are looking for. Use multi-
+		// threading. TODO consider injecting the cipher into constructor.
+		ids := make(map[string]struct{})
+		plaintext := []byte("lorem ipsum")
+
+		beyondCollision := kms.MaxUsage + 5
+		var wg sync.WaitGroup
+		var m safeMap
+
+		// This might take a couple of seconds
+		for i := 0; i < beyondCollision; i++ {
+			wg.Add(1)
+
+			go func(t *testing.T, ids map[string]struct{}) {
+				defer wg.Done()
+
+				_, encKey, _, err := mc.Encrypt(plaintext)
+				if err != nil {
+					t.Error(err)
+				}
+
+				id := base64.StdEncoding.EncodeToString(encKey)
+				m.Add(id)
+			}(t, ids)
+		}
+
+		wg.Wait()
+
+		if m.Len() != 2 {
+			t.Errorf("Expected 2 encrypted keys, have: %d", len(ids))
+		}
+	})
 }
 
 type remoteKMS struct {
-	currentKeyID []byte
-	cipher       *kms.AESGCM
+	encrypt func([]byte) ([]byte, []byte, error)
+	decrypt func([]byte, []byte) ([]byte, error)
 }
 
-func newUpstreamKMS(id []byte) (*remoteKMS, error) {
+var (
+	_ kms.EncrypterDecrypter = (*remoteKMS)(nil)
+)
+
+func newUpstreamKMS(keyID []byte) (*remoteKMS, error) {
 	cipher, err := kms.NewAESGCM()
 	if err != nil {
 		return nil, err
 	}
 
 	return &remoteKMS{
-		cipher:       cipher,
-		currentKeyID: id,
+		encrypt: func(pt []byte) ([]byte, []byte, error) {
+			ct, err := cipher.Encrypt(pt)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return keyID, ct, nil
+		},
+		decrypt: func(keyID []byte, encryptedKey []byte) ([]byte, error) {
+			pt, err := cipher.Decrypt(encryptedKey)
+			if err != nil {
+				return nil, err
+			}
+
+			return pt, nil
+		},
 	}, nil
 }
 
-func (k *remoteKMS) Encrypt(pt []byte) ([]byte, []byte, error) {
-	ct, err := k.cipher.Encrypt(pt)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return k.currentKeyID, ct, nil
+func (k *remoteKMS) Encrypt(plaintext []byte) ([]byte, []byte, error) {
+	return k.encrypt(plaintext)
 }
 
-func (k *remoteKMS) Decrypt(observedID, encryptedKey []byte) ([]byte, error) {
-	pt, err := k.cipher.Decrypt(encryptedKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return pt, nil
+func (k *remoteKMS) Decrypt(keyID, ciphertext []byte) ([]byte, error) {
+	return k.decrypt(keyID, ciphertext)
 }
 
 type safeMap struct {
